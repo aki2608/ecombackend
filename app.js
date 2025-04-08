@@ -192,33 +192,33 @@ app.get('/product/:id',async(req,res)=>{
 })
 
 //task-6 create route to update product
-app.patch("/product/edit/:id",async(req,res)=>{
-        const {id} = req.params;
-        const {name, image, stock, brand, description, price} = req.body;
-        const {token} = req.headers;
-        const decodedToken = jwt.verify(token, "supersecret");
-        try{
-            if(decodedToken.email){
-            const updatedProduct = await Product.findByIdAndUpdate(id,{
-                name,
-                brand,
-                description,
-                image,
-                price,
-                stock
-            });
-            return res.status(200).json({
-                message: "Product updated successfully",
-                product: updatedProduct
-            });
-        }
-    }catch(error){
-        res.status(400).json({
-            message:"Internal server error"
+//task-6 update product
+app.patch("/product/edit/:id", async (req, res) => {
+    const { id } = req.params;
+    const { token } = req.headers;
+     const { name, description, image, price, brand, stock } = req.body.productData;
+    const decodedToken = jwt.verify(token, "supersecret");
+    try {
+      if (decodedToken.email) {
+        const updatedProduct = await Product.findByIdAndUpdate(id, {
+          name,
+          description,
+          image,
+          price,
+          brand,
+          stock,
         });
+        res.status(200).json({ 
+        message: "Product Updated Succesfully",
+         product: updatedProduct
+          });
+      }
+    } catch (error) {
+      res.status(400).json({
+        message: "Internal Server Error Occured While Updating Product",
+      });
     }
-});
-
+  });
 //task-7 -> create route to delete product 
 app.delete('/product/delete/:id',async(req,res)=>{
     try{
@@ -339,6 +339,49 @@ app.post('/cart/add',async(req,res)=>{
         });
     }
     
+})
+//task-10 create route to delte product in cart
+app.delete('/cart/product/delete',async(req,res)=>{
+    try{
+        const {productID} = req.body;
+        const {token} = req.headers;
+        const decodedToken = jwt.verify(token, "supersecret");
+        const user = await User.findOne({email:decodedToken.email}).populate("cart");
+        if(!user){
+            return res.status(404).json({
+                message: "User not found"
+            })
+        }
+        const cart = await Cart.findById(user.cart).populate("products");
+        if(!cart){
+            return res.status(404).json({
+                message: "Cart not found"
+            })
+        }
+        const productIndex = cart.products.findIndex(
+            (product)=> product._id.toString() === productID
+        )
+        if(productIndex === -1){
+            return res.status(404).json({
+                message: "product not found in cart"
+            })
+        }
+        cart.products.splice(productIndex, 1);
+        cart.total = cart.products.reduce(
+            (total, product)=> total + product.price,
+            0
+        );
+        await cart.save();
+        return res.status(200).json({
+            message: "Product deleted from cart successfully",
+            cart: cart
+        })
+    }catch(error){
+        console.log(error);
+        res.status(400).json({
+            message:"Internal server error"
+        });
+    }
 })
 let PORT = 8080;
 app.listen(PORT,()=>{
